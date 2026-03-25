@@ -1,25 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import { completeTask, createTask } from "./actions";
 
 export default function GameMap({ tasks, initialCoins }: { tasks: any[], initialCoins: number }) {
-  const [now, setNow] = useState(Date.now());
   const [isPending, startTransition] = useTransition();
   const [heroPos, setHeroPos] = useState({ x: 50, y: 50 });
   const [attackingTaskId, setAttackingTaskId] = useState<number | null>(null);
-
-  // Global game timer for attenuation
-  useEffect(() => {
-    const int = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(int);
-  }, []);
-
-  const calculateCoins = (createdAt: number) => {
-    const elapsedSeconds = Math.floor((now - createdAt) / 1000);
-    return Math.max(100, 1000 - Math.floor(elapsedSeconds / 36));
-  };
 
   const handleDefeatMonster = async (task: any) => {
     setAttackingTaskId(task.id);
@@ -65,7 +53,6 @@ export default function GameMap({ tasks, initialCoins }: { tasks: any[], initial
 
       {/* Monsters (Active Tasks) */}
       {tasks.map((task) => {
-        const coins = calculateCoins(task.created_at);
         const isBeingAttacked = attackingTaskId === task.id;
 
         return (
@@ -75,12 +62,11 @@ export default function GameMap({ tasks, initialCoins }: { tasks: any[], initial
             style={{ 
                 top: `${task.y}%`, 
                 left: `${task.x}%`, 
-                transform: 'translate(-50%, -50%)',
-                display: isBeingAttacked && tasks.length > 1 ? 'block' : (isBeingAttacked ? 'block' : 'block')
+                transform: 'translate(-50%, -50%)'
             }}
           >
             {/* Monster Spirit */}
-            <div className="relative w-full h-full cursor-pointer" onClick={() => handleDefeatMonster(task)}>
+            <div className="relative w-full h-full cursor-pointer flex flex-col items-center justify-center" onClick={() => handleDefeatMonster(task)}>
                 <Image 
                     src="/monster.png" 
                     alt="Monster" 
@@ -88,25 +74,20 @@ export default function GameMap({ tasks, initialCoins }: { tasks: any[], initial
                     className={`object-contain drop-shadow-2xl transition-all ${isBeingAttacked ? 'animate-ping' : ''}`} 
                 />
                 
-                {/* Info Box Above Monster */}
-                <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none w-max">
-                  <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-3 py-1 rounded-full shadow-lg border-2 border-yellow-600 mb-1 animate-bounce">
-                    💰 {coins}
-                  </span>
-                  <span className="bg-white text-gray-900 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                {/* Task Title Overlay */}
+                <div className="absolute -top-10 z-10">
+                  <span className="bg-white text-gray-900 text-[11px] font-black px-3 py-1 rounded shadow-sm border-2 border-gray-800 uppercase tracking-tighter whitespace-nowrap">
                     {task.title}
                   </span>
                 </div>
 
-                {/* KILL BUBBLE - Positioned to the side, not covering */}
+                {/* KILL BUBBLE - Positioned to the side */}
                 <div 
                     className="absolute -right-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100"
                 >
                     <div className="bg-red-600 text-white font-black text-sm px-4 py-2 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.5)] border-2 border-white animate-pulse">
                         STRIKE!
                     </div>
-                    {/* Tiny arrow pointing to monster */}
-                    <div className="absolute right-full top-1/2 -translate-y-1/2 w-4 h-4 bg-red-600 rotate-45 border-l-2 border-b-2 border-white -mr-2" />
                 </div>
             </div>
           </div>
@@ -116,16 +97,18 @@ export default function GameMap({ tasks, initialCoins }: { tasks: any[], initial
       {/* UI Overlay */}
       <div className="absolute top-6 left-6 right-6 flex justify-between items-start pointer-events-none">
         
-        {/* Treasury */}
-        <div className="bg-[#2c1e14] text-white p-5 rounded-2xl border-4 border-[#b8860b] shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto">
-          <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-[0.2em] mb-1">Royal Treasury</p>
-          <div className="text-5xl font-black text-white flex items-center gap-3">
-            <span className="text-yellow-400">💰</span>
-            {initialCoins.toLocaleString()}
+        {/* Kill Counter */}
+        <div className="bg-[#2c1e14] text-white p-5 rounded-2xl border-4 border-[#8b0000] shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto flex items-center gap-4">
+          <div className="bg-[#8b0000] p-3 rounded-xl border-2 border-white/20 text-2xl">⚔️</div>
+          <div>
+            <p className="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-1">Beasts Slain</p>
+            <div className="text-5xl font-black text-white leading-none">
+              {initialCoins}
+            </div>
           </div>
         </div>
 
-        {/* Task Form - High Fantasy Style */}
+        {/* Task Form */}
         <form 
           onSubmit={(e) => {
             e.preventDefault();
@@ -157,9 +140,8 @@ export default function GameMap({ tasks, initialCoins }: { tasks: any[], initial
         </form>
       </div>
 
-      {/* Legend */}
       <div className="absolute bottom-6 left-6 text-[#f4e4bc]/50 text-[10px] font-bold uppercase tracking-widest pointer-events-none">
-        Click a beast to claim its bounty. Time erodes the reward.
+        Strike the beasts to clear your path.
       </div>
     </div>
   );
