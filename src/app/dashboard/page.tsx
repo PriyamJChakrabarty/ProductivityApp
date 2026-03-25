@@ -1,265 +1,90 @@
-'use client';
+import { submitFormAction } from "./actions";
+import { UserButton } from "@clerk/nextjs";
+import { sql } from "@/lib/db";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
-import { UserStats, Task } from '@/types';
-import { getTasksAction } from '@/actions/tasks';
-import { getUserStatsAction, syncUser, updateProfileAction, getUserProfileAction } from '@/actions/user';
-import { getDefaultUserStats } from '@/lib/gamification';
-import { emitToast } from './layout';
-import { generateId } from '@/lib/gamification';
+export default async function Dashboard() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
 
-export default function DashboardPage() {
-  const { user } = useUser();
-  const [stats, setStats] = useState<UserStats>(getDefaultUserStats());
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [profile, setProfile] = useState<{ displayName: string, favoriteMonster: string }>({ displayName: '', favoriteMonster: '' });
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    
-    const loadData = async () => {
-      await syncUser();
-      const [s, t, p] = await Promise.all([
-        getUserStatsAction(),
-        getTasksAction(),
-        getUserProfileAction()
-      ]);
-      if (s) setStats(s);
-      setTasks(t);
-      if (p) setProfile({ 
-        displayName: p.displayName || '', 
-        favoriteMonster: p.favoriteMonster || '' 
-      });
-    };
-
-    loadData();
-  }, []);
-
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsUpdating(true);
-    try {
-      await updateProfileAction(profile);
-      emitToast({
-        id: generateId(),
-        type: 'info',
-        message: 'Legend status updated!',
-        icon: '📜'
-      });
-    } catch (err) {
-      alert('Failed to update profile');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  if (!mounted) return null;
-
-  const pendingTasks = tasks.filter((t) => t.status === 'pending');
-  const completedToday = tasks.filter(
-    (t) =>
-      t.status === 'completed' &&
-      t.completedAt &&
-      new Date(t.completedAt).toDateString() === new Date().toDateString()
-  );
-
-  const xpPercent = Math.round((stats.xp / stats.xpToNextLevel) * 100);
+  // Fetch all records for the current user
+  let records: any[] = [];
+  try {
+    records = await sql`
+      SELECT id, name, number, created_at 
+      FROM contacts 
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `;
+  } catch (error) {
+    // If table doesn't exist yet, it will throw an error. We can catch it and return an empty array.
+  }
 
   return (
-    <div className="dashboard-home">
-      {/* Welcome Section */}
-      <section className="welcome-section animate-fade-in">
-        <div className="welcome-text">
-          <h1 className="welcome-title">
-            Welcome back, <span className="welcome-name">{user?.firstName || 'Adventurer'}</span> 👋
-          </h1>
-          <p className="welcome-subtitle">
-            {pendingTasks.length > 0
-              ? `You have ${pendingTasks.length} quest${pendingTasks.length > 1 ? 's' : ''} waiting. Let's earn some XP!`
-              : 'Create your first quest to begin your adventure!'}
-          </p>
-        </div>
-      </section>
-
-      {/* Stats Overview Cards */}
-      <section className="stats-grid">
-        <div className="stat-card level-card animate-slide-in-up" style={{ animationDelay: '0.1s' }}>
-          <div className="stat-card-icon">🏰</div>
-          <div className="stat-card-content">
-            <span className="stat-card-label">Level</span>
-            <span className="stat-card-value">{stats.level}</span>
-            <div className="progress-bar" style={{ marginTop: '8px' }}>
-              <div className="progress-bar-fill xp-bar-fill" style={{ width: `${xpPercent}%` }} />
+    <div className="min-h-screen p-8 max-w-4xl mx-auto flex flex-col gap-8">
+      <header className="w-full flex justify-between items-center pb-6 border-b border-gray-200">
+        <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">Dashboard</h1>
+        <UserButton />
+      </header>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+        {/* Form Section */}
+        <main className="md:col-span-1 bg-white shadow-lg rounded-xl p-6 border border-gray-100 h-fit sticky top-8">
+          <h2 className="text-xl font-bold mb-4 text-gray-800">Add Contact</h2>
+          <form action={submitFormAction} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Name</label>
+              <input 
+                name="name"
+                type="text" 
+                required 
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                placeholder="Alice"
+              />
             </div>
-            <span className="stat-card-detail">{stats.xp}/{stats.xpToNextLevel} XP</span>
-          </div>
-        </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Number</label>
+              <input 
+                name="number"
+                type="text" 
+                required 
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                placeholder="123-456-7890"
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="mt-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition shadow-md touch-manipulation"
+            >
+              Save Details
+            </button>
+          </form>
+        </main>
 
-        <div className="stat-card gold-card animate-slide-in-up" style={{ animationDelay: '0.15s' }}>
-          <div className="stat-card-icon">🪙</div>
-          <div className="stat-card-content">
-            <span className="stat-card-label">Gold</span>
-            <span className="stat-card-value gold-text">{stats.coins}</span>
-            <span className="stat-card-detail">Total earned</span>
-          </div>
-        </div>
-
-        <div className="stat-card streak-card animate-slide-in-up" style={{ animationDelay: '0.2s' }}>
-          <div className="stat-card-icon">🔥</div>
-          <div className="stat-card-content">
-            <span className="stat-card-label">Streak</span>
-            <span className="stat-card-value streak-text">{stats.currentStreak}</span>
-            <span className="stat-card-detail">Best: {stats.longestStreak} days</span>
-          </div>
-        </div>
-
-        <div className="stat-card quests-card animate-slide-in-up" style={{ animationDelay: '0.25s' }}>
-          <div className="stat-card-icon">⚔️</div>
-          <div className="stat-card-content">
-            <span className="stat-card-label">Quests Done</span>
-            <span className="stat-card-value">{stats.tasksCompleted}</span>
-            <span className="stat-card-detail">{completedToday.length} today</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Quick Actions */}
-      <section className="quick-actions animate-fade-in" style={{ animationDelay: '0.3s' }}>
-        <h2 className="section-title">⚡ Quick Actions</h2>
-        <div className="actions-grid">
-          <Link href="/dashboard/tasks" className="action-card">
-            <span className="action-icon">⚔️</span>
-            <span className="action-label">View Quests</span>
-            <span className="action-count">{pendingTasks.length} pending</span>
-          </Link>
-          <Link href="/dashboard/stats" className="action-card">
-            <span className="action-icon">📊</span>
-            <span className="action-label">View Stats</span>
-            <span className="action-count">Analytics</span>
-          </Link>
-          <Link href="/dashboard/skills" className="action-card">
-            <span className="action-icon">🌟</span>
-            <span className="action-label">Skill Tree</span>
-            <span className="action-count">Coming soon</span>
-          </Link>
-        </div>
-      </section>
-
-      {/* Recent Activity & Profile Test */}
-      <div className="dashboard-footer-grid">
-        {completedToday.length > 0 && (
-          <section className="recent-section animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            <h2 className="section-title">🏆 Today&apos;s Conquests</h2>
-            <div className="recent-list">
-              {completedToday.slice(0, 5).map((task) => (
-                <div key={task.id} className="recent-item">
-                  <span className="recent-check">✅</span>
-                  <span className="recent-title">{task.title}</span>
-                  <span className="recent-reward">+{task.xpReward} XP</span>
+        {/* Display Section */}
+        <section className="md:col-span-2 flex flex-col gap-6">
+          <h2 className="text-2xl font-bold text-gray-800">Your Contacts</h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {records.length === 0 ? (
+              <p className="text-gray-500 italic col-span-full bg-white p-6 rounded-xl border border-dashed border-gray-300 text-center">
+                No contacts added yet. Use the form to add one!
+              </p>
+            ) : (
+              records.map((record) => (
+                <div key={record.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">{record.name}</h3>
+                  <div className="inline-flex items-center gap-2 text-gray-600 font-medium bg-gray-50 px-3 py-1 rounded-full text-sm">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                    {record.number}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Profile Test UI */}
-        <section className="profile-test-section animate-fade-in" style={{ animationDelay: '0.5s' }}>
-          <h2 className="section-title">👤 Legend & Lore (Test DB)</h2>
-          <div className="profile-card">
-            <p className="profile-desc">Update these fields to test your Neon DB persistence.</p>
-            <form onSubmit={handleUpdateProfile} className="profile-form">
-              <div className="form-group">
-                <label>Hero Name</label>
-                <input 
-                  type="text" 
-                  value={profile.displayName}
-                  onChange={(e) => setProfile(p => ({ ...p, displayName: e.target.value }))}
-                  placeholder="e.g. Sir Productive"
-                />
-              </div>
-              <div className="form-group">
-                <label>Favorite Monster</label>
-                <input 
-                  type="text" 
-                  value={profile.favoriteMonster}
-                  onChange={(e) => setProfile(p => ({ ...p, favoriteMonster: e.target.value }))}
-                  placeholder="e.g. Procrastination Slime"
-                />
-              </div>
-              <button disabled={isUpdating} className="btn-primary update-btn" type="submit">
-                {isUpdating ? 'Saving...' : 'Save to Neon DB'}
-              </button>
-            </form>
+              ))
+            )}
           </div>
         </section>
       </div>
-
-      <style jsx>{`
-        .dashboard-footer-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 28px;
-          margin-bottom: 28px;
-        }
-
-        .profile-card {
-          padding: 24px;
-          background: var(--color-bg-card);
-          border: 1px solid var(--color-border-secondary);
-          border-radius: var(--radius-lg);
-        }
-
-        .profile-desc {
-          font-size: 0.8rem;
-          color: var(--color-text-muted);
-          margin-bottom: 16px;
-        }
-
-        .profile-form {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .form-group label {
-          font-size: 0.75rem;
-          color: var(--color-text-secondary);
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-
-        .form-group input {
-          width: 100%;
-          padding: 10px 14px;
-          background: var(--color-bg-tertiary);
-          border: 1px solid var(--color-border-secondary);
-          border-radius: var(--radius-md);
-          color: var(--color-text-primary);
-          font-size: 0.9rem;
-          outline: none;
-          transition: border-color 0.2s;
-        }
-
-        .form-group input:focus {
-          border-color: var(--color-accent-primary);
-        }
-
-        .update-btn {
-          margin-top: 8px;
-          padding: 12px;
-          font-size: 0.85rem;
-        }
-      `}</style>
     </div>
   );
 }
