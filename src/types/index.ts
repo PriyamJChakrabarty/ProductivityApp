@@ -44,6 +44,13 @@ export interface UserStats {
   lastCompletedAt: string | null;
 }
 
+export interface UserProfile {
+  displayName?: string;
+  favoriteMonster?: string;
+  username?: string;
+}
+
+
 // =================== NOTIFICATION / TOAST TYPES ===================
 
 export type ToastType = 'xp' | 'gold' | 'level' | 'error' | 'info';

@@ -4,6 +4,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import prisma from '@/lib/db';
 import { getDefaultUserStats } from '@/lib/gamification';
 import { UserStats } from '@/types';
+import { revalidatePath } from 'next/cache';
 
 // Sync Clerk user with local DB and return local user with stats
 export async function syncUser() {
@@ -92,4 +93,34 @@ export async function updateUserStatsAction(stats: UserStats) {
       tasksCompleted: stats.tasksCompleted,
     },
   });
+}
+
+export async function getUserProfileAction() {
+  const { userId } = await auth();
+  if (!userId) return null;
+
+  return await prisma.user.findUnique({
+    where: { clerkId: userId },
+    select: {
+      displayName: true,
+      favoriteMonster: true,
+      username: true,
+    },
+  });
+}
+
+export async function updateProfileAction(data: { displayName?: string, favoriteMonster?: string }) {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthorized');
+
+  const result = await prisma.user.update({
+    where: { clerkId: userId },
+    data: {
+      displayName: data.displayName,
+      favoriteMonster: data.favoriteMonster,
+    },
+  });
+
+  revalidatePath('/dashboard');
+  return result;
 }
