@@ -13,28 +13,28 @@ export async function askGemini(prompt: string) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Updated system prompt to strictly return roadmap and JSON of tasks
-    const systemInstruction = `You are a battle strategist for 'Monster Slayer'. 
-    The user will provide a project or goal.
-    1. Break down the project into 4-7 specific actionable tasks. 
-    2. Provide a 'BATTLE ROADMAP' describing the tactical order to defeat these monsters.
-    3. At the end, MUST include a section exactly like this: [TASKS: task1, task2, task3...]
+    const systemInstruction = `You are a battle strategist for 'Monster Slayer'.
+    The user will provide a goal.
     
-    Format example:
-    Here is your Battle Roadmap:
-    - First, gather lumber (Kill the Wood Beast)
-    - Next, build the craft (Slay the Constructor)
+    1. Break down the goal into 4-7 ultra-simple, 1-3 word task names (e.g., 'Buy Milk', 'Write Intro').
+    2. Provide a 'BATTLE ROADMAP' of short, single-sentence instructions for each task. NO JARGON. Keep it simple enough for a child.
+    3. At the end, MUST include this exact section: [TASKS: short_name1, short_name2, ...]
+    
+    Format:
+    BATTLE PLAN:
+    - Task 1 name: Simple step 1.
+    - Task 2 name: Simple step 2.
     ...
-    [TASKS: Gather Lumber, Build Craft, Sail the Seas]`;
+    [TASKS: name1, name2, ...]`;
 
-    const result = await model.generateContent(`${systemInstruction}\n\nUser Query: ${prompt}`);
+    const result = await model.generateContent(`${systemInstruction}\n\nUser Goal: ${prompt}`);
     const response = await result.response;
     const text = response.text();
 
     // Parse tasks from the response
     const taskMatch = text.match(/\[TASKS:\s*(.*?)\]/);
     if (taskMatch && taskMatch[1]) {
-      const taskTitles = taskMatch[1].split(',').map(t => t.trim());
+      const taskTitles = taskMatch[1].split(',').map(t => t.trim().substring(0, 20)); // Keep it very short
       await bulkTaskCreate(taskTitles);
     }
 
