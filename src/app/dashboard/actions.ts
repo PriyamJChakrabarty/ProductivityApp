@@ -20,21 +20,22 @@ export async function initDB() {
   `;
 }
 
-export async function createTask(formData: FormData) {
+export async function createTask(formData: FormData | string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  const title = formData.get("title") as string;
+  let title = "";
+  if (typeof formData === 'string') {
+    title = formData;
+  } else {
+    title = formData.get("title") as string;
+  }
+  
   if (!title) return;
 
-  // Generate a random position for the monster avoiding the direct center (where hero is)
-  // X and Y are percentages (0 to 100)
-  let x = Math.floor(Math.random() * 80) + 10;
-  let y = Math.floor(Math.random() * 80) + 10;
-  
-  // if it's too close to center (45-55), push it away
-  if (x > 40 && x < 60) x = x < 50 ? 20 : 80;
-  if (y > 40 && y < 60) y = y < 50 ? 20 : 80;
+  // Monsters stay within 15% to 85% of map to stay inside bounding box.
+  const x = Math.floor(Math.random() * 70) + 15; 
+  const y = Math.floor(Math.random() * 70) + 15; 
 
   await initDB();
 
@@ -42,6 +43,24 @@ export async function createTask(formData: FormData) {
     INSERT INTO game_tasks (user_id, title, x, y)
     VALUES (${userId}, ${title}, ${x}, ${y})
   `;
+  
+  revalidatePath("/dashboard");
+}
+
+export async function bulkTaskCreate(titles: string[]) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  
+  await initDB();
+
+  for (const title of titles) {
+    const x = Math.floor(Math.random() * 70) + 15;
+    const y = Math.floor(Math.random() * 70) + 15;
+    await sql`
+      INSERT INTO game_tasks (user_id, title, x, y)
+      VALUES (${userId}, ${title}, ${x}, ${y})
+    `;
+  }
   
   revalidatePath("/dashboard");
 }
