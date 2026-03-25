@@ -1,6 +1,42 @@
 **One-line intro:**
 A **fully gamified productivity Website** that turns your life into an evolving game—where tasks, habits, and goals become quests, progression, and real-world rewards.
 
+
+I am basically a xxxP type mbti So i cannot keep a disciplined or scheduled work!!! So i am thinking of making a website that can gamify that entire thing Doing tasks and all
+
+
+
+Now i dont want that app to be just like some other to do list app
+
+
+
+
+
+Ok so i want it to be like a hero game -
+
+
+
+so a hero with sword, so each task is like a monster, and u need to defeat the monster
+
+
+
+So It will automatically create a small map and place the monster there - and start a global timer that will attenuate the coins earned from the monster with time!!!
+
+
+
+The faster u do the task, the more coins u earn from the monster
+
+
+
+So we put monster on a task and go on as this
+
+
+
+
+
+find the monster and hero pngs from the public folder
+
+
 ---
 
 # 🚀 FEATURES (ONLY FEATURES)
